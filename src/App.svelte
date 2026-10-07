@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { SECTION_OPTIONS } from './options';
   import { parseItems, downloadJson } from './json';
   import type { Item } from './types';
@@ -6,6 +7,7 @@
   let items = $state<Item[]>([]);
   let selected = $state<number | null>(null);
   let options = $state<string[]>([...SECTION_OPTIONS]);
+  let waveCount = $state(0);
   let toAdd = $state(SECTION_OPTIONS[0] ?? '');
   let fileName = $state('dati.json');
   let message = $state<{ kind: 'error' | 'ok'; text: string } | null>(null);
@@ -21,6 +23,41 @@
       else seen.add(id);
     });
     return out;
+  });
+
+  function syncWavesFromStorage() {
+    try {
+      const raw = localStorage.getItem('shmup_waves');
+      if (raw) {
+        const waves = JSON.parse(raw);
+        if (Array.isArray(waves)) {
+          const waveIds = waves.map((w: any) => String(w.id)).filter(Boolean);
+          waveCount = waveIds.length;
+          // Unisci le opzioni statiche con gli ID delle wave senza duplicati
+          const merged = Array.from(new Set([...SECTION_OPTIONS, ...waveIds]));
+          options = merged;
+          if (!options.includes(toAdd) && options.length) {
+            toAdd = options[0];
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Errore lettura shmup_waves:', e);
+    }
+  }
+
+  onMount(() => {
+    syncWavesFromStorage();
+
+    // Reattività automatica tra tab del browser
+    const onStorageChange = (ev: StorageEvent) => {
+      if (ev.key === 'shmup_waves') {
+        syncWavesFromStorage();
+        message = { kind: 'ok', text: 'Opzioni wave aggiornate da WaveEditor!' };
+      }
+    };
+    window.addEventListener('storage', onStorageChange);
+    return () => window.removeEventListener('storage', onStorageChange);
   });
 
   function addItem() {
@@ -93,6 +130,9 @@
 <header class="bar">
   <h1>Editor JSON</h1>
   <div class="bar-actions">
+    <button class="btn" onclick={syncWavesFromStorage} title="Ricarica wave create da WaveEditor">
+      Sync Wave ({waveCount})
+    </button>
     <label class="btn">
       Carica JSON
       <input type="file" accept=".json,application/json" onchange={onUpload} hidden />
