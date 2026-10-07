@@ -1,12 +1,12 @@
 import type { Item } from './types';
 
-/** Accetta un array di elementi oppure un singolo elemento; lancia un Error leggibile se il formato non è valido. */
+/** Parses an array of items or a single item; throws a readable Error if invalid format. */
 export function parseItems(text: string): Item[] {
   let data: unknown;
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error('Il file non è un JSON valido.');
+    throw new Error('File is not valid JSON.');
   }
   const list: unknown[] = Array.isArray(data) ? data : [data];
   return list.map((raw, i) => {
@@ -17,7 +17,7 @@ export function parseItems(text: string): Item[] {
       !Array.isArray(r.sections) ||
       !r.sections.every((s) => typeof s === 'string')
     ) {
-      throw new Error(`Elemento ${i + 1}: servono "id" (testo) e "sections" (elenco di testi).`);
+      throw new Error(`Item ${i + 1}: requires "id" (string) and "sections" (array of strings).`);
     }
     return { id: r.id, sections: [...r.sections] };
   });
